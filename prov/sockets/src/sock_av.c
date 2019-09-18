@@ -70,7 +70,8 @@ int sock_av_get_addr_index(struct sock_av *av, union ofi_sock_ip *addr)
 
 	for (i = 0; i < (int)av->table_hdr->size; i++) {
 		av_addr = &av->table[i];
-		if (!av_addr->valid)
+		assert(av_addr->valid == 0 || av_addr->valid == 1);
+		if (av_addr->valid != 1)
 			continue;
 
 		 if (ofi_equals_sockaddr((const struct sockaddr *) addr,
@@ -157,9 +158,15 @@ static int sock_resize_av_table(struct sock_av *av)
 
 		av->idx_arr[av->table_hdr->stored] = av->table_hdr->stored;
 	} else {
+
+		DBG9858("here, about to realloc (%p)\n", av->table_hdr);
+//		DBG9858("here, guard_0 0x%lu guard_1 0x%lu\n",
+		DBG9858("here, guard_0 0x%lx guard_1 0x%lx\n",
+			av->guard_0, av->guard_1);
 		new_addr = realloc(av->table_hdr, table_sz);
 		if (!new_addr)
 			return -1;
+		DBG9858("here, after realloc (%p)\n", av->table_hdr);
 		memset((char *) new_addr + old_sz, 0, table_sz - old_sz);
 	}
 
@@ -175,6 +182,7 @@ static int sock_av_get_next_index(struct sock_av *av)
 	uint64_t i;
 
 	for (i = 0; i < av->table_hdr->size; i++) {
+		assert(av->table[i].valid == 0 || av->table[i].valid == 1);
 		if (!av->table[i].valid)
 			return i;
 	}
@@ -254,6 +262,7 @@ static int sock_check_table_in(struct sock_av *_av, const struct sockaddr *addr,
 		if (fi_addr)
 			fi_addr[i] = (fi_addr_t)index;
 
+		assert(av_addr->valid == 0 || av_addr->valid == 1);
 		av_addr->valid = 1;
 		ret++;
 	}
@@ -421,6 +430,7 @@ static int sock_av_remove(struct fid_av *av, fi_addr_t *fi_addr, size_t count,
 
 	for (i = 0; i < count; i++) {
 		av_addr = &_av->table[fi_addr[i]];
+		assert(av_addr->valid == 0 || av_addr->valid == 1);
 		av_addr->valid = 0;
 	}
 
@@ -468,7 +478,9 @@ static int sock_av_close(struct fid *fid)
 		return -FI_EBUSY;
 
 	if (!av->shared) {
+		DBG9858("here, free(%p)\n", av->table_hdr);
 		free(av->table_hdr);
+		av->table_hdr = NULL;
 	} else {
 		ret = ofi_shm_unmap(&av->shm);
 		if (ret)
@@ -478,7 +490,10 @@ static int sock_av_close(struct fid *fid)
 
 	ofi_atomic_dec32(&av->domain->ref);
 	fastlock_destroy(&av->list_lock);
+	av->guard_0 = 0;
+	av->guard_1 = 0;
 	free(av);
+	DBG9858("here, free(av=%p)\n", av);
 	return 0;
 }
 
@@ -557,6 +572,12 @@ int sock_av_open(struct fid_domain *domain, struct fi_av_attr *attr,
 	_av->attr = *attr;
 	_av->attr.count = (attr->count) ? attr->count : sock_av_def_sz;
 	table_sz = SOCK_AV_TABLE_SZ(_av->attr.count, attr->name);
+	_av->guard_0 = MOD9858_GUARD_0;
+	_av->guard_1 = MOD9858_GUARD_1;
+//	DBG9858("new sock_av, guard_0 0x%"PRIu64" guard_1 0x"PRIu64"\n",
+//	DBG9858("new sock_av, guard_0 0x%lu guard_1 0x%lu\n",
+	DBG9858("new sock_av, guard_0 0x%lx guard_1 0x%lx\n",
+		_av->guard_0, _av->guard_1);
 
 	if (attr->name) {
 		ret = ofi_shm_map(&_av->shm, attr->name, table_sz,
@@ -583,6 +604,7 @@ int sock_av_open(struct fid_domain *domain, struct fi_av_attr *attr,
 			_av->table_hdr->stored = 0;
 		}
 		_av->shared = 1;
+		DBG9858("here, new_av->talbe_hdr %p\n", _av->table_hdr);
 	} else {
 		_av->table_hdr = calloc(1, table_sz);
 		if (!_av->table_hdr) {
@@ -590,6 +612,7 @@ int sock_av_open(struct fid_domain *domain, struct fi_av_attr *attr,
 			goto err;
 		}
 		_av->table_hdr->size = _av->attr.count;
+		DBG9858("here, new_av->talbe_hdr %p\n", _av->table_hdr);
 	}
 	sock_update_av_table(_av, _av->attr.count);
 
@@ -636,8 +659,11 @@ err2:
 	if(attr->name) {
 		ofi_shm_unmap(&_av->shm);
 	} else {
-		if(_av->table_hdr != MAP_FAILED)
+		if(_av->table_hdr != MAP_FAILED) {
+			DBG9858("here, free(%p)\n", _av->table_hdr);
 			free(_av->table_hdr);
+			_av->table_hdr = NULL;
+		}
 	}
 err:
 	free(_av);

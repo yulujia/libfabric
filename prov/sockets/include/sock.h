@@ -92,7 +92,7 @@
 
 #define SOCK_EQ_DEF_SZ (1<<8)
 #define SOCK_CQ_DEF_SZ (1<<8)
-#define SOCK_AV_DEF_SZ (1<<8)
+#define SOCK_AV_DEF_SZ (1<<16)
 #define SOCK_CMAP_DEF_SZ (1<<10)
 #define SOCK_EPOLL_WAIT_EVENTS 32
 
@@ -370,7 +370,9 @@ struct sock_av {
 	int rx_ctx_bits;
 	socklen_t addrlen;
 	struct sock_eq *eq;
+	unsigned long guard_0;
 	struct sock_av_table_hdr *table_hdr;
+	unsigned long guard_1;
 	struct sock_av_addr *table;
 	uint64_t *idx_arr;
 	struct util_shm shm;
@@ -378,6 +380,9 @@ struct sock_av {
 	struct dlist_entry ep_list;
 	fastlock_t list_lock;
 };
+
+#define MOD9858_GUARD_0 0xabababababababab
+#define MOD9858_GUARD_1 0x0101010101010101
 
 struct sock_fid_list {
 	struct dlist_entry entry;
