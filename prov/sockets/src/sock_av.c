@@ -70,6 +70,7 @@ int sock_av_get_addr_index(struct sock_av *av, union ofi_sock_ip *addr)
 
 	for (i = 0; i < (int)av->table_hdr->size; i++) {
 		av_addr = &av->table[i];
+		assert(av_addr->valid == 0 || av_addr->valid == 1);
 		if (!av_addr->valid)
 			continue;
 
@@ -157,9 +158,12 @@ static int sock_resize_av_table(struct sock_av *av)
 
 		av->idx_arr[av->table_hdr->stored] = av->table_hdr->stored;
 	} else {
+		DBG9858("here, about to realloc (%p)\n", av->table_hdr);
 		new_addr = realloc(av->table_hdr, table_sz);
 		if (!new_addr)
 			return -1;
+		DBG9858("here, after realloc (%p)\n", av->table_hdr);
+		memset((char *) new_addr + old_sz, 0, table_sz - old_sz);
 	}
 
 	av->table_hdr = new_addr;
@@ -174,6 +178,7 @@ static int sock_av_get_next_index(struct sock_av *av)
 	uint64_t i;
 
 	for (i = 0; i < av->table_hdr->size; i++) {
+		assert(av->table[i].valid == 0 || av->table[i].valid == 1);
 		if (!av->table[i].valid)
 			return i;
 	}
@@ -253,6 +258,7 @@ static int sock_check_table_in(struct sock_av *_av, const struct sockaddr *addr,
 		if (fi_addr)
 			fi_addr[i] = (fi_addr_t)index;
 
+		assert(av_addr->valid == 0 || av_addr->valid == 1);
 		av_addr->valid = 1;
 		ret++;
 	}
@@ -420,6 +426,7 @@ static int sock_av_remove(struct fid_av *av, fi_addr_t *fi_addr, size_t count,
 
 	for (i = 0; i < count; i++) {
 		av_addr = &_av->table[fi_addr[i]];
+		assert(av_addr->valid == 0 || av_addr->valid == 1);
 		av_addr->valid = 0;
 	}
 

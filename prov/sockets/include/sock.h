@@ -92,7 +92,7 @@
 
 #define SOCK_EQ_DEF_SZ (1<<8)
 #define SOCK_CQ_DEF_SZ (1<<8)
-#define SOCK_AV_DEF_SZ (1<<8)
+#define SOCK_AV_DEF_SZ (1<<16)
 #define SOCK_CMAP_DEF_SZ (1<<10)
 #define SOCK_EPOLL_WAIT_EVENTS 32
 

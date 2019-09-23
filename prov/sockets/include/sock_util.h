@@ -39,6 +39,13 @@
 #include <rdma/providers/fi_log.h>
 #include "sock.h"
 
+#define DBG9858(x...) \
+do {			\
+	fprintf(stderr, "mod9858 file %s func %s line %d ", \
+			__FILE__, __func__, __LINE__); \
+	fprintf(stderr, x);	\
+} while (0)
+
 extern const char sock_fab_name[];
 extern const char sock_dom_name[];
 extern const char sock_prov_name[];
